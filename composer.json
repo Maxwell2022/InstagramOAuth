@@ -1,6 +1,8 @@
 {
     "name": "maxwell2022/instagramoauth",
     "homepage": "https://github.com/Maxwell2022/InstagramOAuth",
+    "keywords": ["instagram","oauth"],
+    "license": "MIT",
     "require": {
         "php": ">=5.3.0",
         "maxwell2022/oauthclient": "1.*"
