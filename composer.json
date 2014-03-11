@@ -3,11 +3,11 @@
     "homepage": "https://github.com/Maxwell2022/InstagramOAuth",
     "require": {
         "php": ">=5.3.0",
-        "maxwell2022/oauthclient": "dev-master"
+        "maxwell2022/oauthclient": "1.*"
     },
     "autoload": {
         "psr-0": {
-            "Tumblr": "classes/"
+            "Instagram": "classes/"
         }
     }
 }
