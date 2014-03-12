@@ -3,13 +3,18 @@
     "homepage": "https://github.com/Maxwell2022/InstagramOAuth",
     "keywords": ["instagram","oauth"],
     "license": "MIT",
+    "authors": [{
+        "name" : "Maxime Aoustin",
+        "homepage": "https://github.com/Maxwell2022"
+    }],
     "require": {
         "php": ">=5.3.0",
         "maxwell2022/oauthclient": "1.*"
     },
     "autoload": {
         "psr-0": {
-            "Instagram": "classes/"
+            "Maxwell\\Instagram": ""
         }
-    }
+    },
+    "target-dir": "classes/Instagram"
 }
