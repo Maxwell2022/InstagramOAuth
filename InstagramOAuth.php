@@ -9,6 +9,13 @@ use Maxwell\OAuthClient\OAuth;
  */
 class InstagramOAuth
 {
+    const ACCESS_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
+    const AUTHENTICATE_URL = 'https://api.instagram.com/oauth/authorize';
+    const AUTHORIZE_URL = 'https://api.instagram.com/oauth/authorize';
+    const REQUEST_TOKEN_URL = 'https://api.instagram.com/oauth/authorize';
+
+    const API_ENTRY_POINT = 'https://api.instagram.com/v1/';
+
     /**
      * @var string Contains the last HTTP status code returned.
      */
@@ -18,11 +25,6 @@ class InstagramOAuth
      * @var string Contains the last API call.
      */
     public $url;
-
-    /**
-     * @var string Set up the API root URL.
-     */
-    public $host = "https://api.instagram.com/v1/";
 
     /**
      * @var int Set timeout default.
@@ -37,7 +39,7 @@ class InstagramOAuth
     /**
      * @var bool Verify SSL Certificate
      */
-    public $ssl_verifypeer = FALSE;
+    public $ssl_verifypeer = false;
 
     /**
      * @var string Response format
@@ -47,7 +49,7 @@ class InstagramOAuth
     /**
      * @var bool Decode returned json data
      */
-    public $decode_json = TRUE;
+    public $decode_json = true;
 
     /**
      * @var array Contains the last HTTP headers returned
@@ -64,14 +66,23 @@ class InstagramOAuth
      */
     protected $token;
 
+    /**
+     * @var string App client id
+     */
+    protected $clientId;
 
     /**
-     * Set API URLS
+     * @var string App client id
      */
-    function accessTokenURL()  { return 'https://api.instagram.com/oauth/access_token'; }
-    function authenticateURL() { return 'https://api.instagram.com/oauth/authorize'; }
-    function authorizeURL()    { return 'https://api.instagram.com/oauth/authorize'; }
-    function requestTokenURL() { return 'https://api.instagram.com/oauth/access_token'; }
+    protected $clientSecret;
+
+    /**
+     * @var string Redirect URL of the authentication
+     */
+    protected $redirectURI;
+
+    protected $consumer;
+    protected $sha1_method;
 
     /**
      * construct InstragramOAuth object
@@ -81,52 +92,40 @@ class InstagramOAuth
      * @param null $oauth_token
      * @param null $oauth_token_secret
      */
-    function __construct($consumer_key, $consumer_secret, $oauth_token = NULL, $oauth_token_secret = NULL)
+    function __construct($consumer_key, $consumer_secret, $redirectURI, $oauth_token = null, $oauth_token_secret = null)
     {
-        $this->sha1_method = new OAuth\SignatureMethodHMAC();
-        $this->consumer = new OAuth\Consumer($consumer_key, $consumer_secret);
-        if (!empty($oauth_token) && !empty($oauth_token_secret)) {
-            $this->token = new OAuth\Consumer($oauth_token, $oauth_token_secret);
-        } else {
-            $this->token = NULL;
-        }
-    }
+        $this->clientId = $consumer_key;
+        $this->clientSecret = $consumer_secret;
+        $this->redirectURI = $redirectURI;
 
-    /**
-     * Get a request_token from Instragram
-     *
-     * @param null $oauth_callback
-     * @return array key/value array containing oauth_token and oauth_token_secret
-     */
-    function getRequestToken($oauth_callback = NULL)
-    {
-        $parameters = array();
-        if (!empty($oauth_callback)) {
-            $parameters['oauth_callback'] = $oauth_callback;
-        }
-        $request = $this->oAuthRequest($this->requestTokenURL(), 'GET', $parameters);
-        $token = OAuth\Util::parse_parameters($request);
-        $this->token = new OAuth\Consumer($token['oauth_token'], $token['oauth_token_secret']);
-        return $token;
+        $this->consumer = new OAuth\Consumer($consumer_key, $consumer_secret, $redirectURI);
+        $this->sha1_method = new OAuth\SignatureMethodHMAC();
     }
 
     /**
      * Get the authorize URL
      *
-     * @param $token
-     * @param bool $sign_in_with_tumblr
+     * @param null $redirectURL
+     * @param string $scope
+     * @param null $state
+     * @param string $responseType
+     *
      * @return string
      */
-    function getAuthorizeURL($token, $sign_in_with_tumblr = TRUE)
+    function getAuthorizeURL($redirectURI = null, $scope = 'basic', $state = null, $responseType = 'code')
     {
-        if (is_array($token)) {
-            $token = $token['oauth_token'];
+        $params = array(
+            'client_id' => $this->clientId,
+            'scope' => $scope,
+            'response_type' => $responseType,
+            'redirect_uri' => $this->getRedirectUri($redirectURI)
+        );
+
+        if (null !== $state) {
+            $params['redirect_uri'] = $redirectURL;
         }
-        if (empty($sign_in_with_tumblr)) {
-            return $this->authorizeURL() . "?oauth_token={$token}";
-        } else {
-            return $this->authenticateURL() . "?oauth_token={$token}";
-        }
+
+        return self::AUTHORIZE_URL . '?' . http_build_query($params);
     }
 
     /**
@@ -139,16 +138,17 @@ class InstagramOAuth
      *                "user_id" => "9436992",
      *                "screen_name" => "abraham")
      */
-    function getAccessToken($oauth_verifier = FALSE)
+    function getAccessToken($code, $redirectURI = null)
     {
-        $parameters = array();
-        if (!empty($oauth_verifier)) {
-            $parameters['oauth_verifier'] = $oauth_verifier;
-        }
-        $request = $this->oAuthRequest($this->accessTokenURL(), 'GET', $parameters);
-        $token = OAuth\Util::parse_parameters($request);
-        $this->token = new OAuth\Consumer($token['oauth_token'], $token['oauth_token_secret']);
-        return $token;
+        $parameters = array(
+            'code' => $code,
+            'client_id' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $this->getRedirectUri($redirectURI)
+        );
+
+        return $this->oAuthRequest(self::ACCESS_TOKEN_URL, 'POST', $parameters);
     }
 
     /**
@@ -168,9 +168,10 @@ class InstagramOAuth
         $parameters['x_auth_username'] = $username;
         $parameters['x_auth_password'] = $password;
         $parameters['x_auth_mode'] = 'client_auth';
-        $request = $this->oAuthRequest($this->accessTokenURL(), 'POST', $parameters);
+        $request = $this->oAuthRequest(self::ACCESS_TOKEN_URL, 'POST', $parameters);
         $token = OAuth\Util::parse_parameters($request);
         $this->token = new OAuth\Consumer($token['oauth_token'], $token['oauth_token_secret']);
+
         return $token;
     }
 
@@ -187,6 +188,7 @@ class InstagramOAuth
         if ($this->format === 'json' && $this->decode_json) {
             return json_decode($response);
         }
+
         return $response;
     }
 
@@ -203,6 +205,7 @@ class InstagramOAuth
         if ($this->format === 'json' && $this->decode_json) {
             return json_decode($response);
         }
+
         return $response;
     }
 
@@ -219,6 +222,7 @@ class InstagramOAuth
         if ($this->format === 'json' && $this->decode_json) {
             return json_decode($response);
         }
+
         return $response;
     }
 
@@ -233,8 +237,9 @@ class InstagramOAuth
     function oAuthRequest($url, $method, $parameters)
     {
         if (strrpos($url, 'https://') !== 0 && strrpos($url, 'http://') !== 0) {
-            $url = "{$this->host}{$url}";
+            $url = self::API_ENTRY_POINT.$url;
         }
+
         $request = OAuth\Request::from_consumer_and_token($this->consumer, $this->token, $method, $url, $parameters);
         $request->sign_request($this->sha1_method, $this->consumer, $this->token);
         switch ($method) {
@@ -253,7 +258,7 @@ class InstagramOAuth
      * @param null $postfields
      * @return mixed
      */
-    function http($url, $method, $postfields = NULL)
+    function http($url, $method, $postfields = null)
     {
         $this->http_info = array();
         $ci = curl_init();
@@ -261,15 +266,15 @@ class InstagramOAuth
         curl_setopt($ci, CURLOPT_USERAGENT, $this->useragent);
         curl_setopt($ci, CURLOPT_CONNECTTIMEOUT, $this->connecttimeout);
         curl_setopt($ci, CURLOPT_TIMEOUT, $this->timeout);
-        curl_setopt($ci, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($ci, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ci, CURLOPT_HTTPHEADER, array('Expect:'));
         curl_setopt($ci, CURLOPT_SSL_VERIFYPEER, $this->ssl_verifypeer);
         curl_setopt($ci, CURLOPT_HEADERFUNCTION, array($this, 'getHeader'));
-        curl_setopt($ci, CURLOPT_HEADER, FALSE);
+        curl_setopt($ci, CURLOPT_HEADER, false);
 
         switch ($method) {
             case 'POST':
-                curl_setopt($ci, CURLOPT_POST, TRUE);
+                curl_setopt($ci, CURLOPT_POST, true);
                 if (!empty($postfields)) {
                     curl_setopt($ci, CURLOPT_POSTFIELDS, $postfields);
                 }
@@ -286,7 +291,8 @@ class InstagramOAuth
         $this->http_code = curl_getinfo($ci, CURLINFO_HTTP_CODE);
         $this->http_info = array_merge($this->http_info, curl_getinfo($ci));
         $this->url = $url;
-        curl_close ($ci);
+        curl_close($ci);
+
         return $response;
     }
 
@@ -305,6 +311,7 @@ class InstagramOAuth
             $value = trim(substr($header, $i + 2));
             $this->http_header[$key] = $value;
         }
+
         return strlen($header);
     }
 
@@ -315,7 +322,8 @@ class InstagramOAuth
      * @param  $oauth_token_secret
      * @return void
      */
-    function setOAuthToken($oauth_token, $oauth_token_secret) {
+    function setOAuthToken($oauth_token, $oauth_token_secret)
+    {
         $this->token = new OAuth\Consumer($oauth_token, $oauth_token_secret);
     }
 
@@ -325,12 +333,36 @@ class InstagramOAuth
      * @param  $request
      * @return array
      */
-    function getToken($request) {
+    function getToken($request)
+    {
         $token = OAuth\Util::parse_parameters($request);
         if (isset($token['oauth_token'], $token['oauth_token_secret'])) {
             $this->token = new OAuth\Consumer($token['oauth_token'], $token['oauth_token_secret']);
         }
 
         return $token;
+    }
+
+    /**
+     * @param null $uri
+     * @return string
+     */
+    protected function getRedirectUri($uri = null)
+    {
+        $redirectURI = $this->redirectURI;
+
+        if (null !== $uri) {
+            $redirectURI = $uri;
+        }
+
+        if (!preg_match('#^http#i', $redirectURI)) {
+            $protocol = 'http://';
+            if (preg_match('#https#i', $_SERVER['SERVER_PROTOCOL'])) {
+                $protocol = 'https://';
+            }
+            $redirectURI = $protocol . $_SERVER['HTTP_HOST'] . $redirectURI;
+        }
+
+        return $redirectURI;
     }
 }
