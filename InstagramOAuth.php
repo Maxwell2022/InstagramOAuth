@@ -1,13 +1,13 @@
 <?php
 
-namespace Instragram;
+namespace Maxwell\Instagram;
 
 use OAuthClient\OAuth;
 
 /**
- * Instragram OAuth class
+ * Instagram OAuth class
  */
-class InstragramOAuth
+class InstagramOAuth
 {
     /**
      * @var string Contains the last HTTP status code returned.
