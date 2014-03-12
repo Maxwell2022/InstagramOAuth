@@ -2,7 +2,7 @@
 
 namespace Maxwell\Instagram;
 
-use OAuthClient\OAuth;
+use Maxwell\OAuthClient\OAuth;
 
 /**
  * Instagram OAuth class
