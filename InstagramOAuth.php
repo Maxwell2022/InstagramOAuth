@@ -357,7 +357,7 @@ class InstagramOAuth
 
         if (!preg_match('#^http#i', $redirectURI)) {
             $protocol = 'http://';
-            if (preg_match('#https#i', $_SERVER['SERVER_PROTOCOL'])) {
+            if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
                 $protocol = 'https://';
             }
             $redirectURI = $protocol . $_SERVER['HTTP_HOST'] . $redirectURI;
