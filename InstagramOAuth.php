@@ -122,7 +122,7 @@ class InstagramOAuth
         );
 
         if (null !== $state) {
-            $params['redirect_uri'] = $redirectURL;
+            $params['state'] = $state;
         }
 
         return self::AUTHORIZE_URL . '?' . http_build_query($params);
