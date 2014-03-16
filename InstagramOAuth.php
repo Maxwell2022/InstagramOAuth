@@ -20,7 +20,7 @@ class InstagramOAuth extends AbstractOAuthClient
     /**
      * Get the authorize URL
      *
-     * @param null $redirectURL
+     * @param null $redirectURI
      * @param string $scope
      * @param null $state
      * @param string $responseType
@@ -47,11 +47,10 @@ class InstagramOAuth extends AbstractOAuthClient
      * Exchange request token and secret for an access token and
      * secret, to sign API calls.
      *
-     * @param bool $oauth_verifier
-     * @return array ("oauth_token" => "the-access-token",
-     *                "oauth_token_secret" => "the-access-secret",
-     *                "user_id" => "9436992",
-     *                "screen_name" => "abraham")
+     * @param string $code
+     * @param string|null $redirectURI
+     *
+     * @return mixed
      */
     function getAccessToken($code, $redirectURI = null)
     {
@@ -67,12 +66,12 @@ class InstagramOAuth extends AbstractOAuthClient
     }
 
     /**
-     * Format and sign an OAuth / API request
+     * Request the API
      *
-     * @param $url
-     * @param $method
-     * @param $parameters
-     * @return API
+     * @param $uri
+     * @param string $method
+     * @param array $parameters
+     * @return array|string
      */
     public function request($uri, $method='GET', $parameters=array())
     {
